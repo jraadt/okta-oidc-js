@@ -10,35 +10,24 @@
  * See the License for the specific language governing permissions and limitations under the License.
  */
 
-import { NgModule, Injector } from '@angular/core';
-import { OktaCallbackComponent } from './components/callback.component';
-import { OktaLoginRedirectComponent } from './components/login-redirect.component';
-import { OktaAuthService } from './services/okta.service';
-import { OktaAuthGuard } from './okta.guard';
-import { OKTA_CONFIG } from './models/okta.config';
-import { createOktaService } from './createService';
+import { NgModule, Injector, ApplicationRef } from "@angular/core";
+import { OktaCallbackComponent } from "./components/callback.component";
+import { OktaLoginRedirectComponent } from "./components/login-redirect.component";
+import { OktaAuthService } from "./services/okta.service";
+import { OktaAuthGuard } from "./okta.guard";
+import { OKTA_CONFIG } from "./models/okta.config";
+import { createOktaService } from "./createService";
 
 @NgModule({
-  declarations: [
-    OktaCallbackComponent,
-    OktaLoginRedirectComponent,
-  ],
-  exports: [
-    OktaCallbackComponent,
-    OktaLoginRedirectComponent,
-  ],
+  declarations: [OktaCallbackComponent, OktaLoginRedirectComponent],
+  exports: [OktaCallbackComponent, OktaLoginRedirectComponent],
   providers: [
     OktaAuthGuard,
     {
       provide: OktaAuthService,
       useFactory: createOktaService,
-      deps: [
-        OKTA_CONFIG,
-        Injector
-      ]
+      deps: [OKTA_CONFIG, Injector, ApplicationRef]
     }
   ]
 })
-export class OktaAuthModule {
-
-}
+export class OktaAuthModule {}

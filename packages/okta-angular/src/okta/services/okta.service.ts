@@ -10,7 +10,7 @@
  * See the License for the specific language governing permissions and limitations under the License.
  */
 
-import { Inject, Injectable, Injector } from '@angular/core';
+import { Inject, Injectable, Injector, ApplicationRef } from '@angular/core';
 import {
   assertIssuer,
   assertClientId,
@@ -28,15 +28,16 @@ import packageInfo from '../packageInfo';
  */
 import OktaAuth from '@okta/okta-auth-js';
 import { Observable, Observer } from 'rxjs';
+import { first } from 'rxjs/operators';
 
 @Injectable()
 export class OktaAuthService {
-    private oktaAuth: OktaAuth;
+    private oktaAuth: Promise<OktaAuth>;
     private config: OktaConfig;
     private observers: Observer<boolean>[];
     $authenticationState: Observable<boolean>;
 
-    constructor(@Inject(OKTA_CONFIG) config: OktaConfig, private injector: Injector) {
+    constructor(@Inject(OKTA_CONFIG) config: OktaConfig, private injector: Injector, private applicationRef: ApplicationRef) {
       this.observers = [];
 
       /**
@@ -62,8 +63,14 @@ export class OktaAuthService {
       assertClientId(this.config.clientId);
       assertRedirectUri(this.config.redirectUri);
 
-      this.oktaAuth = new OktaAuth(this.config);
-      this.oktaAuth.userAgent = `${packageInfo.name}/${packageInfo.version} ${this.oktaAuth.userAgent}`;
+      this.oktaAuth = new Promise((resolve, reject) => {
+        this.applicationRef.isStable.pipe(first(stable => stable)).subscribe(_ => {
+          const oktaAuthInstance = new OktaAuth(this.config);
+          oktaAuthInstance.userAgent = `${packageInfo.name}/${packageInfo.version} ${oktaAuthInstance.userAgent}`;
+          resolve(oktaAuthInstance);
+        });
+      });
+
       this.$authenticationState = new Observable((observer: Observer<boolean>) => { this.observers.push(observer); });
     }
 
@@ -104,7 +111,7 @@ export class OktaAuthService {
      */
     async getAccessToken(): Promise<string | undefined>  {
       try {
-        const accessToken: AccessToken = await this.oktaAuth.tokenManager.get('accessToken') as AccessToken;
+        const accessToken: AccessToken = await (await this.oktaAuth).tokenManager.get('accessToken') as AccessToken;
         return accessToken.accessToken;
       } catch (err) {
         // The user no longer has an existing SSO session in the browser.
@@ -119,7 +126,7 @@ export class OktaAuthService {
      */
     async getIdToken(): Promise<string | undefined> {
       try {
-        const idToken: IDToken = await this.oktaAuth.tokenManager.get('idToken') as IDToken;
+        const idToken: IDToken = await (await this.oktaAuth).tokenManager.get('idToken') as IDToken;
         return idToken.idToken;
       } catch (err) {
         // The user no longer has an existing SSO session in the browser.
@@ -134,13 +141,14 @@ export class OktaAuthService {
      * accessToken is provided or parses the available idToken.
      */
     async getUser(): Promise<UserClaims|undefined> {
-      const accessToken: AccessToken = await this.oktaAuth.tokenManager.get('accessToken') as AccessToken;
-      const idToken: IDToken = await this.oktaAuth.tokenManager.get('idToken') as IDToken;
+      const auth = await this.oktaAuth;
+      const accessToken: AccessToken = await auth.tokenManager.get('accessToken') as AccessToken;
+      const idToken: IDToken = await auth.tokenManager.get('idToken') as IDToken;
       if (!accessToken || !idToken) {
         // Returns raw claims from idToken if there is no accessToken.
         return idToken ? idToken.claims : undefined;
       }
-      return this.oktaAuth.token.getUserInfo();
+      return auth.token.getUserInfo();
     }
 
     /**
@@ -155,7 +163,7 @@ export class OktaAuthService {
      * @param fromUri
      * @param additionalParams
      */
-    loginRedirect(fromUri?: string, additionalParams?: object) {
+    async loginRedirect(fromUri?: string, additionalParams?: object) {
       if (fromUri) {
         this.setFromUri(fromUri);
       }
@@ -165,7 +173,7 @@ export class OktaAuthService {
         responseType: this.config.responseType
       }, additionalParams);
 
-      return this.oktaAuth.token.getWithRedirect(params); // can throw
+      return (await this.oktaAuth).token.getWithRedirect(params); // can throw
     }
 
     /**
@@ -174,19 +182,20 @@ export class OktaAuthService {
      */
     async loginSilent(additionalParams?: object) {
       try {
-        var tokens = await this.oktaAuth.token.getWithoutPrompt({
+        const auth = await this.oktaAuth;
+        const tokens = await auth.token.getWithoutPrompt({
           responseType: (this.config.responseType || 'id_token token').split(' '),
           // Convert scopes to list of strings
           scopes: this.config.scope.split(' '),
           ...additionalParams
         });
 
-        for (var a = 0; a < tokens.length; a++) {
+        for (let a = 0; a < tokens.length; a++) {
           if (tokens[a].idToken) {
-            this.oktaAuth.tokenManager.add('idToken', tokens[a]);
+            auth.tokenManager.add('idToken', tokens[a]);
           }
           if (tokens[a].accessToken) {
-            this.oktaAuth.tokenManager.add('accessToken', tokens[a]);
+            auth.tokenManager.add('accessToken', tokens[a]);
           }
         }
 
@@ -231,13 +240,14 @@ export class OktaAuthService {
      * Parses the tokens from the callback URL.
      */
     async handleAuthentication(): Promise<void> {
-      const res = await this.oktaAuth.token.parseFromUrl();
+      const auth = await this.oktaAuth;
+      const res = await auth.token.parseFromUrl();
       const tokens = res.tokens;
       if (tokens.accessToken) {
-        this.oktaAuth.tokenManager.add('accessToken', tokens.accessToken as AccessToken);
+        auth.tokenManager.add('accessToken', tokens.accessToken as AccessToken);
       }
       if (tokens.idToken) {
-        this.oktaAuth.tokenManager.add('idToken', tokens.idToken as IDToken);
+        auth.tokenManager.add('idToken', tokens.idToken as IDToken);
       }
       if (await this.isAuthenticated()) {
         this.emitAuthenticationState(true);

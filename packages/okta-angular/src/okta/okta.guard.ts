@@ -52,7 +52,7 @@ export class OktaAuthGuard implements CanActivate, CanActivateChild {
     if (onAuthRequired) {
       onAuthRequired(this.oktaAuth, this.injector);
     } else {
-      this.oktaAuth.loginRedirect();
+      await this.oktaAuth.loginRedirect();
     }
 
     return false;
