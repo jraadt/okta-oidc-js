@@ -112,6 +112,9 @@ export class OktaAuthService {
     async getAccessToken(): Promise<string | undefined>  {
       try {
         const accessToken: AccessToken = await (await this.oktaAuth).tokenManager.get('accessToken') as AccessToken;
+        if (accessToken == null) {
+          return undefined;
+        }
         return accessToken.accessToken;
       } catch (err) {
         // The user no longer has an existing SSO session in the browser.
