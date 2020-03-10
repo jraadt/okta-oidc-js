@@ -10,20 +10,20 @@
  * See the License for the specific language governing permissions and limitations under the License.
  */
 
-import { Injectable, Injector } from "@angular/core";
+import { Injectable, Injector } from '@angular/core';
 import {
   CanActivate,
   CanActivateChild,
   ActivatedRouteSnapshot,
   RouterStateSnapshot
-} from "@angular/router";
+} from '@angular/router';
 
-import { OktaAuthService } from "./services/okta.service";
-import { AuthRequiredFunction } from "./models/okta.config";
+import { OktaAuthService } from './services/okta.service';
+import { AuthRequiredFunction } from './models/okta.config';
 
 @Injectable()
 export class OktaAuthGuard implements CanActivate, CanActivateChild {
-  constructor(private oktaAuth: OktaAuthService, private injector: Injector) {}
+  constructor(private oktaAuth: OktaAuthService, private injector: Injector) { }
 
   /**
    * Gateway for protected route. Returns true if there is a valid accessToken,
@@ -40,9 +40,7 @@ export class OktaAuthGuard implements CanActivate, CanActivateChild {
      * Get the operation to perform on failed authentication from
      * either the global config or route data injection.
      */
-    const onAuthRequired: AuthRequiredFunction =
-      route.data["onAuthRequired"] ||
-      this.oktaAuth.getOktaConfig().onAuthRequired;
+    const onAuthRequired: AuthRequiredFunction = route.data['onAuthRequired'] || this.oktaAuth.getOktaConfig().onAuthRequired;
 
     /**
      * Store the current path
@@ -58,10 +56,7 @@ export class OktaAuthGuard implements CanActivate, CanActivateChild {
     return false;
   }
 
-  async canActivateChild(
-    route: ActivatedRouteSnapshot,
-    state: RouterStateSnapshot
-  ) {
+  async canActivateChild(route: ActivatedRouteSnapshot, state: RouterStateSnapshot) {
     return this.canActivate(route, state);
   }
 }
