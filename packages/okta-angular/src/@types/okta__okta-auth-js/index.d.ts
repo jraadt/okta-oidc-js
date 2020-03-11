@@ -10,6 +10,7 @@ declare interface ParseFromUrlResponse {
 
 declare interface TokenAPI {
   getUserInfo(accessToken?: AccessToken, idToken?: IDToken): Promise;
+  getWithoutPrompt(params?: object): Promise;
   getWithRedirect(params?: object): Promise;
   parseFromUrl(): ParseFromUrlResponse;
 }

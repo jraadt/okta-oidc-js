@@ -83,8 +83,8 @@ export class OktaAuthService {
       return this.loginRedirect(undefined, additionalParams);
     }
 
-    getTokenManager(): TokenManager {
-      return this.oktaAuth.tokenManager;
+    async getTokenManager(): Promise<TokenManager> {
+      return (await this.oktaAuth).tokenManager;
     }
 
     /**
@@ -186,24 +186,25 @@ export class OktaAuthService {
     async loginSilent(additionalParams?: object) {
       try {
         const auth = await this.oktaAuth;
-        const tokens = await auth.token.getWithoutPrompt({
-          responseType: (this.config.responseType || 'id_token token').split(' '),
-          // Convert scopes to list of strings
-          scopes: this.config.scope.split(' '),
-          ...additionalParams
-        });
+
+        const params = Object.assign({
+          scopes: this.config.scopes,
+          responseType: this.config.responseType
+        }, additionalParams);
+
+        const tokens = await auth.token.getWithoutPrompt(params);
 
         for (let a = 0; a < tokens.length; a++) {
-          if (tokens[a].idToken) {
-            auth.tokenManager.add('idToken', tokens[a]);
-          }
           if (tokens[a].accessToken) {
             auth.tokenManager.add('accessToken', tokens[a]);
+          }
+          if (tokens[a].idToken) {
+            auth.tokenManager.add('idToken', tokens[a]);
           }
         }
 
         if (await this.isAuthenticated()) {
-          this.emitAuthenticationState(true)
+          this.emitAuthenticationState(true);
         }
 
         return tokens;
@@ -275,7 +276,7 @@ export class OktaAuthService {
           postLogoutRedirectUri: redirectUri
         };
       }
-      await this.oktaAuth.signOut(options);
+      await (await this.oktaAuth).signOut(options);
       this.emitAuthenticationState(false);
     }
 
