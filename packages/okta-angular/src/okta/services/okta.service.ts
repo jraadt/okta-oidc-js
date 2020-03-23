@@ -185,24 +185,20 @@ export class OktaAuthService {
      */
     async loginSilent(additionalParams?: object) {
       try {
-        const auth = await this.oktaAuth;
-
         const params = Object.assign({
           scopes: this.config.scopes,
           responseType: this.config.responseType
         }, additionalParams);
 
-        const tokens = await auth.token.getWithoutPrompt(params);
-
-        for (let a = 0; a < tokens.length; a++) {
-          if (tokens[a].accessToken) {
-            auth.tokenManager.add('accessToken', tokens[a]);
-          }
-          if (tokens[a].idToken) {
-            auth.tokenManager.add('idToken', tokens[a]);
-          }
+        const auth = await this.oktaAuth;
+        const res = await auth.token.getWithoutPrompt(params);
+        const tokens = res.tokens;
+        if (tokens.accessToken) {
+          auth.tokenManager.add('accessToken', tokens.accessToken as AccessToken);
         }
-
+        if (tokens.idToken) {
+          auth.tokenManager.add('idToken', tokens.idToken as IDToken);
+        }
         if (await this.isAuthenticated()) {
           this.emitAuthenticationState(true);
         }
